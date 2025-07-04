@@ -7,6 +7,8 @@ import '../core/utils/app_utils.dart';
 import '../core/constants/app_constants.dart';
 
 class AuthController extends GetxController {
+  static AuthController get instance => Get.find();
+
   // Loading States
   final RxBool isLoading = false.obs;
   final RxBool isSignUpLoading = false.obs;
@@ -40,7 +42,6 @@ class AuthController extends GetxController {
 
   @override
   void onClose() {
-    // تنظيف الـ Controllers
     nameController.dispose();
     phoneController.dispose();
     emailController.dispose();
@@ -49,16 +50,18 @@ class AuthController extends GetxController {
     super.onClose();
   }
 
-  // تهيئة بيانات المستخدم عند فتح التطبيق
   void _initializeUser() {
-    final user = AuthService.getCurrentUser();
-    if (user != null) {
-      currentUser.value = user;
-      userType.value = AuthService.getCurrentUserType();
+    try {
+      final user = AuthService.getCurrentUser();
+      if (user != null) {
+        currentUser.value = user;
+        userType.value = AuthService.getCurrentUserType();
+      }
+    } catch (e) {
+      print('Error initializing user: $e');
     }
   }
 
-  // تسجيل مستخدم جديد
   Future<void> signUp() async {
     if (!signUpFormKey.currentState!.validate()) return;
 
@@ -87,13 +90,12 @@ class AuthController extends GetxController {
 
         AppUtils.showSuccessSnackbar('نجح التسجيل', 'تم إنشاء حسابك بنجاح');
 
-        // رفع الصورة إذا تم اختيارها
         if (profileImagePath.value.isNotEmpty) {
           await uploadProfileImage();
         }
 
         _clearForm();
-        Get.offAllNamed('/home');
+        Get.offAllNamed('/main-navigation');
       } else {
         AppUtils.showErrorSnackbar('فشل التسجيل', response.message);
       }
@@ -104,7 +106,6 @@ class AuthController extends GetxController {
     }
   }
 
-  // تسجيل الدخول
   Future<void> signIn() async {
     if (!signInFormKey.currentState!.validate()) return;
 
@@ -132,7 +133,7 @@ class AuthController extends GetxController {
         AppUtils.showSuccessSnackbar('مرحباً بعودتك', 'تم تسجيل الدخول بنجاح');
 
         _clearForm();
-        Get.offAllNamed('/home');
+        Get.offAllNamed('/main-navigation');
       } else {
         AppUtils.showErrorSnackbar('فشل تسجيل الدخول', response.message);
       }
@@ -143,7 +144,6 @@ class AuthController extends GetxController {
     }
   }
 
-  // رفع صورة الملف الشخصي
   Future<void> uploadProfileImage() async {
     if (profileImagePath.value.isEmpty) return;
 
@@ -166,7 +166,6 @@ class AuthController extends GetxController {
     }
   }
 
-  // اختيار صورة من المعرض
   Future<void> pickImageFromGallery() async {
     try {
       final ImagePicker picker = ImagePicker();
@@ -185,7 +184,6 @@ class AuthController extends GetxController {
     }
   }
 
-  // اختيار صورة من الكاميرا
   Future<void> pickImageFromCamera() async {
     try {
       final ImagePicker picker = ImagePicker();
@@ -204,7 +202,6 @@ class AuthController extends GetxController {
     }
   }
 
-  // تسجيل الخروج
   Future<void> logout() async {
     try {
       isLoading.value = true;
@@ -218,7 +215,7 @@ class AuthController extends GetxController {
       AppUtils.showSuccessSnackbar(
           'تم تسجيل الخروج', 'شكراً لاستخدام تطبيق Medics');
 
-      Get.offAllNamed('/onboarding');
+      Get.offAllNamed('/main-navigation');
     } catch (e) {
       AppUtils.showErrorSnackbar('خطأ في تسجيل الخروج', e.toString());
     } finally {
@@ -226,20 +223,15 @@ class AuthController extends GetxController {
     }
   }
 
-  // التحقق من حالة تسجيل الدخول
   bool get isLoggedIn => AuthService.isLoggedIn();
-
-  // التحقق من نوع المستخدم
   bool get isDoctor => AuthService.isDoctor();
   bool get isPatient => AuthService.isPatient();
 
-  // تحديث نوع المستخدم (عند تسجيل عيادة)
   void updateUserType(String newUserType) {
     userType.value = newUserType;
     AuthService.updateUserType(newUserType);
   }
 
-  // تحديث اسم المستخدم
   void updateUserName(String newName) {
     if (currentUser.value != null) {
       currentUser.value = currentUser.value!.copyWith(name: newName);
@@ -247,7 +239,6 @@ class AuthController extends GetxController {
     }
   }
 
-  // تحديث البيانات الشخصية
   void updateUserData({
     String? name,
     String? email,
@@ -266,7 +257,6 @@ class AuthController extends GetxController {
     }
   }
 
-  // مسح النموذج
   void _clearForm() {
     nameController.clear();
     phoneController.clear();
@@ -276,7 +266,6 @@ class AuthController extends GetxController {
     profileImagePath.value = '';
   }
 
-  // التحقق من صحة البيانات
   String? validateName(String? value) => AppUtils.validateName(value);
   String? validatePhone(String? value) => AppUtils.validatePhone(value);
   String? validateEmail(String? value) => AppUtils.validateEmail(value);
@@ -286,7 +275,6 @@ class AuthController extends GetxController {
     return AppUtils.validateConfirmPassword(value, passwordController.text);
   }
 
-  // إظهار خيارات اختيار الصورة
   void showImagePickerOptions() {
     Get.bottomSheet(
       Container(
@@ -340,14 +328,9 @@ class AuthController extends GetxController {
     );
   }
 
-  // إعادة تحميل بيانات المستخدم
   Future<void> refreshUserData() async {
     try {
       // TODO: إضافة API لجلب بيانات المستخدم المحدثة
-      // final userDetails = await AuthService.getCurrentUserDetails();
-      // if (userDetails.isSuccess && userDetails.data != null) {
-      //   currentUser.value = userDetails.data;
-      // }
     } catch (e) {
       AppUtils.logError('خطأ في تحديث بيانات المستخدم', e);
     }

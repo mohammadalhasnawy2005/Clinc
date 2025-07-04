@@ -1,5 +1,3 @@
-import 'package:clinic/views/widgets/appointment_list.dart';
-import 'package:clinic/views/widgets/appointments_filter_tabs.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../core/constants/app_colors.dart';
@@ -7,29 +5,38 @@ import '../../core/constants/app_strings.dart';
 import '../../core/constants/app_constants.dart';
 import '../../controllers/appointment_controller.dart';
 import '../../controllers/auth_controller.dart';
+import '../widgets/appointment_list.dart';
+import '../widgets/appointments_filter_tabs.dart';
 
 class MyAppointmentsScreen extends StatelessWidget {
   const MyAppointmentsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final AppointmentController appointmentController =
-        Get.put(AppointmentController());
-    final AuthController authController = Get.find<AuthController>();
+    // استخدم Get.put مع condition
+    final appointmentController =
+        Get.put(AppointmentController(), permanent: false);
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: Text(
-          authController.isDoctor
-              ? 'مواعيد العيادة'
-              : AppStrings.myAppointments,
-        ),
+        title: Obx(() {
+          // التأكد من وجود AuthController
+          if (!Get.isRegistered<AuthController>()) {
+            Get.put(AuthController(), permanent: true);
+          }
+
+          final authController = AuthController.instance;
+          return Text(
+            authController.isDoctor
+                ? 'مواعيد العيادة'
+                : AppStrings.myAppointments,
+          );
+        }),
         backgroundColor: Colors.transparent,
         elevation: 0,
         automaticallyImplyLeading: false,
         actions: [
-          // Filter Action
           IconButton(
             onPressed: () {
               _showFilterBottomSheet(context, appointmentController);
@@ -40,10 +47,7 @@ class MyAppointmentsScreen extends StatelessWidget {
       ),
       body: Column(
         children: [
-          // Filter Tabs
-          AppointmentsFilterTabs(),
-
-          // Appointments List
+          const AppointmentsFilterTabs(),
           Expanded(
             child: RefreshIndicator(
               onRefresh: () => appointmentController.refreshAllData(),

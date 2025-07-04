@@ -7,6 +7,8 @@ import '../core/utils/app_utils.dart';
 import 'auth_controller.dart';
 
 class AppointmentController extends GetxController {
+  static AppointmentController get instance => Get.find();
+
   // Loading States
   final RxBool isLoading = false.obs;
   final RxBool isCreatingAppointment = false.obs;
@@ -34,7 +36,7 @@ class AppointmentController extends GetxController {
   final RxBool hasMoreData = true.obs;
 
   // Filters
-  final RxInt statusFilter = (-1).obs; // -1 = all, 0-3 = specific status
+  final RxInt statusFilter = (-1).obs;
   final Rx<DateTime?> fromDateFilter = Rx<DateTime?>(null);
   final Rx<DateTime?> toDateFilter = Rx<DateTime?>(null);
 
@@ -44,9 +46,6 @@ class AppointmentController extends GetxController {
   // Booking Form
   final GlobalKey<FormState> bookingFormKey = GlobalKey<FormState>();
   final TextEditingController notesController = TextEditingController();
-
-  // Get AuthController
-  final AuthController _authController = Get.find<AuthController>();
 
   @override
   void onInit() {
@@ -60,19 +59,26 @@ class AppointmentController extends GetxController {
     super.onClose();
   }
 
-  // تهيئة البيانات
   Future<void> _initializeData() async {
-    if (_authController.isLoggedIn) {
-      if (_authController.isPatient) {
-        await loadMyAppointments();
-      } else if (_authController.isDoctor) {
-        await loadDoctorAppointments();
-        await loadAppointmentStats();
+    try {
+      // التأكد من وجود AuthController
+      if (Get.isRegistered<AuthController>()) {
+        final authController = AuthController.instance;
+
+        if (authController.isLoggedIn) {
+          if (authController.isPatient) {
+            await loadMyAppointments();
+          } else if (authController.isDoctor) {
+            await loadDoctorAppointments();
+            await loadAppointmentStats();
+          }
+        }
       }
+    } catch (e) {
+      print('Error initializing appointment data: $e');
     }
   }
 
-  // تحميل مواعيد المريض
   Future<void> loadMyAppointments({bool refresh = false}) async {
     try {
       isLoadingAppointments.value = true;
@@ -82,8 +88,6 @@ class AppointmentController extends GetxController {
       );
 
       myAppointments.assignAll(appointments);
-
-      // تصنيف المواعيد
       _categorizeAppointments(appointments);
     } catch (e) {
       AppUtils.showErrorSnackbar('خطأ', 'فشل في تحميل مواعيدك');
@@ -92,7 +96,6 @@ class AppointmentController extends GetxController {
     }
   }
 
-  // تحميل مواعيد الطبيب
   Future<void> loadDoctorAppointments({
     int? doctorId,
     bool refresh = false,
@@ -108,11 +111,7 @@ class AppointmentController extends GetxController {
       );
 
       doctorAppointments.assignAll(appointments);
-
-      // تحميل طلبات الحجز المعلقة
       await loadPendingAppointments(doctorId: doctorId);
-
-      // تصنيف المواعيد
       _categorizeAppointments(appointments);
     } catch (e) {
       AppUtils.showErrorSnackbar('خطأ', 'فشل في تحميل مواعيد العيادة');
@@ -121,7 +120,6 @@ class AppointmentController extends GetxController {
     }
   }
 
-  // تحميل طلبات الحجز المعلقة
   Future<void> loadPendingAppointments({int? doctorId}) async {
     try {
       final pending = await AppointmentService.getPendingAppointments(
@@ -133,7 +131,6 @@ class AppointmentController extends GetxController {
     }
   }
 
-  // تحميل المواعيد القادمة
   Future<void> loadUpcomingAppointments() async {
     try {
       final upcoming = await AppointmentService.getUpcomingAppointments();
@@ -143,7 +140,6 @@ class AppointmentController extends GetxController {
     }
   }
 
-  // تحميل مواعيد اليوم
   Future<List<AppointmentModel>> getTodayAppointments({int? doctorId}) async {
     try {
       return await AppointmentService.getTodayAppointments(doctorId: doctorId);
@@ -153,7 +149,6 @@ class AppointmentController extends GetxController {
     }
   }
 
-  // إنشاء موعد جديد
   Future<void> createAppointment({
     required int doctorId,
     required DateTime appointmentDate,
@@ -162,7 +157,6 @@ class AppointmentController extends GetxController {
     try {
       isCreatingAppointment.value = true;
 
-      // التحقق من توفر الموعد
       final isAvailable = await AppointmentService.isAppointmentAvailable(
         doctorId,
         appointmentDate,
@@ -186,13 +180,9 @@ class AppointmentController extends GetxController {
         AppUtils.showSuccessSnackbar('تم حجز الموعد',
             'تم إرسال طلب الحجز للطبيب، ستحصل على رد خلال 48 ساعة');
 
-        // تحديث البيانات
         await loadMyAppointments(refresh: true);
-
-        // مسح النموذج
         _clearBookingForm();
-
-        Get.back(); // الرجوع للصفحة السابقة
+        Get.back();
       } else {
         AppUtils.showErrorSnackbar('فشل الحجز', response.message);
       }
@@ -203,7 +193,6 @@ class AppointmentController extends GetxController {
     }
   }
 
-  // تغيير حالة الموعد (للطبيب)
   Future<void> toggleAppointmentStatus(int appointmentId) async {
     try {
       isUpdatingStatus.value = true;
@@ -214,8 +203,6 @@ class AppointmentController extends GetxController {
       if (response.isSuccess) {
         AppUtils.showSuccessSnackbar(
             'تم التحديث', 'تم تحديث حالة الموعد بنجاح');
-
-        // تحديث البيانات
         await loadDoctorAppointments(refresh: true);
       } else {
         AppUtils.showErrorSnackbar('فشل التحديث', response.message);
@@ -227,7 +214,6 @@ class AppointmentController extends GetxController {
     }
   }
 
-  // إكمال الموعد (للطبيب)
   Future<void> completeAppointment(int appointmentId) async {
     try {
       isUpdatingStatus.value = true;
@@ -238,8 +224,6 @@ class AppointmentController extends GetxController {
       if (response.isSuccess) {
         AppUtils.showSuccessSnackbar(
             'تم الإكمال', 'تم إكمال الموعد ونقله للأرشيف');
-
-        // تحديث البيانات
         await loadDoctorAppointments(refresh: true);
         await loadAppointmentStats();
       } else {
@@ -252,7 +236,6 @@ class AppointmentController extends GetxController {
     }
   }
 
-  // تحميل إحصائيات المواعيد
   Future<void> loadAppointmentStats({int? doctorId}) async {
     try {
       final stats = await AppointmentService.getAppointmentStats(
@@ -264,7 +247,6 @@ class AppointmentController extends GetxController {
     }
   }
 
-  // تصنيف المواعيد حسب الحالة
   void _categorizeAppointments(List<AppointmentModel> appointments) {
     final upcoming = <AppointmentModel>[];
     final completed = <AppointmentModel>[];
@@ -281,118 +263,120 @@ class AppointmentController extends GetxController {
     completedAppointments.assignAll(completed);
   }
 
-  // تطبيق فلتر الحالة
   void applyStatusFilter(int status) {
     statusFilter.value = status;
-    if (_authController.isPatient) {
-      loadMyAppointments(refresh: true);
-    } else if (_authController.isDoctor) {
-      loadDoctorAppointments(refresh: true);
+    if (Get.isRegistered<AuthController>()) {
+      final authController = AuthController.instance;
+      if (authController.isPatient) {
+        loadMyAppointments(refresh: true);
+      } else if (authController.isDoctor) {
+        loadDoctorAppointments(refresh: true);
+      }
     }
   }
 
-  // تطبيق فلتر التاريخ
   void applyDateFilter(DateTime? fromDate, DateTime? toDate) {
     fromDateFilter.value = fromDate;
     toDateFilter.value = toDate;
-    if (_authController.isDoctor) {
-      loadDoctorAppointments(refresh: true);
+    if (Get.isRegistered<AuthController>()) {
+      final authController = AuthController.instance;
+      if (authController.isDoctor) {
+        loadDoctorAppointments(refresh: true);
+      }
     }
   }
 
-  // مسح جميع الفلاتر
   void clearFilters() {
     statusFilter.value = -1;
     fromDateFilter.value = null;
     toDateFilter.value = null;
-    if (_authController.isPatient) {
-      loadMyAppointments(refresh: true);
-    } else if (_authController.isDoctor) {
-      loadDoctorAppointments(refresh: true);
+    if (Get.isRegistered<AuthController>()) {
+      final authController = AuthController.instance;
+      if (authController.isPatient) {
+        loadMyAppointments(refresh: true);
+      } else if (authController.isDoctor) {
+        loadDoctorAppointments(refresh: true);
+      }
     }
   }
 
-  // اختيار موعد
   void selectAppointment(AppointmentModel appointment) {
     selectedAppointment.value = appointment;
   }
 
-  // اختيار طبيب للحجز
   void selectDoctorForBooking(DoctorModel doctor) {
     selectedDoctor.value = doctor;
   }
 
-  // اختيار تاريخ للحجز
   void selectDateForBooking(DateTime date) {
     selectedDate.value = date;
   }
 
-  // التحقق من إمكانية الحجز
   bool canBookAppointment() {
     return selectedDoctor.value != null && selectedDate.value != null;
   }
 
-  // الحصول على عدد المواعيد حسب الحالة
   int getAppointmentCountByStatus(int status) {
-    if (_authController.isPatient) {
-      return myAppointments.where((apt) => apt.status == status).length;
-    } else if (_authController.isDoctor) {
-      return doctorAppointments.where((apt) => apt.status == status).length;
+    if (Get.isRegistered<AuthController>()) {
+      final authController = AuthController.instance;
+      if (authController.isPatient) {
+        return myAppointments.where((apt) => apt.status == status).length;
+      } else if (authController.isDoctor) {
+        return doctorAppointments.where((apt) => apt.status == status).length;
+      }
     }
     return 0;
   }
 
-  // الحصول على المواعيد حسب الحالة
   List<AppointmentModel> getAppointmentsByStatus(int status) {
-    if (_authController.isPatient) {
-      return myAppointments.where((apt) => apt.status == status).toList();
-    } else if (_authController.isDoctor) {
-      return doctorAppointments.where((apt) => apt.status == status).toList();
+    if (Get.isRegistered<AuthController>()) {
+      final authController = AuthController.instance;
+      if (authController.isPatient) {
+        return myAppointments.where((apt) => apt.status == status).toList();
+      } else if (authController.isDoctor) {
+        return doctorAppointments.where((apt) => apt.status == status).toList();
+      }
     }
     return [];
   }
 
-  // حساب الوقت المتبقي للموعد
   String getTimeUntilAppointment(AppointmentModel appointment) {
     return appointment.timeUntilText;
   }
 
-  // التحقق من قرب انتهاء فترة الموافقة (48 ساعة)
   bool isApprovalTimeExpiring(AppointmentModel appointment) {
     if (!appointment.isPending) return false;
 
     final hoursSinceCreation =
         DateTime.now().difference(appointment.appointmentDate).inHours;
-
-    return hoursSinceCreation >= 36; // تحذير قبل 12 ساعة من انتهاء المهلة
+    return hoursSinceCreation >= 36;
   }
 
-  // مسح نموذج الحجز
   void _clearBookingForm() {
     notesController.clear();
     selectedDoctor.value = null;
     selectedDate.value = null;
   }
 
-  // تحديث جميع البيانات
   Future<void> refreshAllData() async {
-    if (_authController.isPatient) {
-      await loadMyAppointments(refresh: true);
-    } else if (_authController.isDoctor) {
-      await Future.wait([
-        loadDoctorAppointments(refresh: true),
-        loadAppointmentStats(),
-      ]);
+    if (Get.isRegistered<AuthController>()) {
+      final authController = AuthController.instance;
+      if (authController.isPatient) {
+        await loadMyAppointments(refresh: true);
+      } else if (authController.isDoctor) {
+        await Future.wait([
+          loadDoctorAppointments(refresh: true),
+          loadAppointmentStats(),
+        ]);
+      }
     }
   }
 
-  // إظهار تفاصيل الموعد
   void showAppointmentDetails(AppointmentModel appointment) {
     selectedAppointment.value = appointment;
     Get.toNamed('/appointment-details');
   }
 
-  // إظهار حوار تأكيد إكمال الموعد
   void showCompleteAppointmentDialog(AppointmentModel appointment) {
     Get.dialog(
       AlertDialog(
@@ -415,7 +399,6 @@ class AppointmentController extends GetxController {
     );
   }
 
-  // إظهار حوار تغيير حالة الموعد
   void showToggleStatusDialog(AppointmentModel appointment) {
     final String actionText = appointment.isPending ? 'موافقة' : 'تغيير حالة';
 

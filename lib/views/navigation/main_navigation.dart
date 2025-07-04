@@ -14,23 +14,27 @@ class MainNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final AuthController authController = Get.find<AuthController>();
-    final GeneralController generalController = Get.find<GeneralController>();
-
     return Obx(() {
-      // تحديد الصفحات حسب نوع المستخدم
+      // التأكد من وجود Controllers
+      if (!Get.isRegistered<AuthController>()) {
+        Get.put(AuthController(), permanent: true);
+      }
+      if (!Get.isRegistered<GeneralController>()) {
+        Get.put(GeneralController(), permanent: true);
+      }
+
+      final authController = AuthController.instance;
+      final generalController = GeneralController.instance;
+
       final List<NavigationItem> items = _getNavigationItems(authController);
 
       return Scaffold(
         body: Stack(
           children: [
-            // الصفحة الحالية
             IndexedStack(
               index: generalController.currentBottomNavIndex.value,
               children: items.map((item) => item.page).toList(),
             ),
-
-            // زر المحادثة العائم
             const ChatFloatingButton(),
           ],
         ),
@@ -66,7 +70,6 @@ class MainNavigation extends StatelessWidget {
 
     if (authController.isLoggedIn) {
       if (authController.isPatient) {
-        // صفحات المريض
         baseItems.addAll([
           NavigationItem(
             icon: Icons.calendar_today_outlined,
@@ -82,14 +85,7 @@ class MainNavigation extends StatelessWidget {
           ),
         ]);
       } else if (authController.isDoctor) {
-        // صفحات الطبيب
         baseItems.addAll([
-          // NavigationItem(
-          //   icon: Icons.dashboard_outlined,
-          //   activeIcon: Icons.dashboard_rounded,
-          //   label: AppStrings.doctorDashboard,
-          //   page: const DoctorDashboardScreen(),
-          // ),
           NavigationItem(
             icon: Icons.calendar_today_outlined,
             activeIcon: Icons.calendar_today_rounded,
@@ -105,7 +101,6 @@ class MainNavigation extends StatelessWidget {
         ]);
       }
     } else {
-      // للمستخدم غير المسجل - صفحات محدودة
       baseItems.addAll([
         NavigationItem(
           icon: Icons.search_outlined,
@@ -140,7 +135,6 @@ class NavigationItem {
   });
 }
 
-// صفحة البحث للمستخدم غير المسجل
 class _SearchScreen extends StatelessWidget {
   const _SearchScreen();
 
@@ -177,7 +171,6 @@ class _SearchScreen extends StatelessWidget {
               ),
               textAlign: TextAlign.center,
             ),
-            // TODO: إضافة وظائف البحث هنا
           ],
         ),
       ),
@@ -185,7 +178,6 @@ class _SearchScreen extends StatelessWidget {
   }
 }
 
-// صفحة دعوة تسجيل الدخول
 class _LoginPromptScreen extends StatelessWidget {
   const _LoginPromptScreen();
 

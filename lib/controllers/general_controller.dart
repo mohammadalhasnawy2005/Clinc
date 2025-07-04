@@ -6,6 +6,8 @@ import '../core/utils/app_utils.dart';
 import '../core/config/api_config.dart';
 
 class GeneralController extends GetxController {
+  static GeneralController get instance => Get.find();
+
   // Loading States
   final RxBool isLoading = false.obs;
   final RxBool isRefreshing = false.obs;
@@ -51,26 +53,31 @@ class GeneralController extends GetxController {
     super.onClose();
   }
 
-  // تهيئة التطبيق
   Future<void> _initializeApp() async {
-    await _checkFirstTime();
-    await _loadBasicData();
-    await _checkInternetConnection();
+    try {
+      await _checkFirstTime();
+      await _loadBasicData();
+      await _checkInternetConnection();
+    } catch (e) {
+      print('Error initializing app: $e');
+    }
   }
 
-  // إعداد مستمع البحث
   void _setupSearchListener() {
     searchController.addListener(() {
       searchQuery.value = searchController.text;
     });
   }
 
-  // التحقق من المرة الأولى لفتح التطبيق
   Future<void> _checkFirstTime() async {
-    isFirstTime.value = ApiConfig.isFirstTime();
+    try {
+      isFirstTime.value = ApiConfig.isFirstTime();
+    } catch (e) {
+      print('Error checking first time: $e');
+      isFirstTime.value = true;
+    }
   }
 
-  // تحميل البيانات الأساسية
   Future<void> _loadBasicData() async {
     try {
       isLoading.value = true;
@@ -88,7 +95,6 @@ class GeneralController extends GetxController {
     }
   }
 
-  // تحميل التخصصات
   Future<void> loadSpecializations({bool forceRefresh = false}) async {
     try {
       final specs = await GeneralService.getSpecializations(
@@ -100,7 +106,6 @@ class GeneralController extends GetxController {
     }
   }
 
-  // تحميل الأيام
   Future<void> loadDays({bool forceRefresh = false}) async {
     try {
       final daysList = await GeneralService.getDays(
@@ -112,7 +117,6 @@ class GeneralController extends GetxController {
     }
   }
 
-  // تحميل الإحصائيات العامة
   Future<void> loadGeneralStats() async {
     try {
       final stats = await GeneralService.getGeneralStats();
@@ -122,7 +126,6 @@ class GeneralController extends GetxController {
     }
   }
 
-  // التحقق من اتصال الإنترنت
   Future<void> _checkInternetConnection() async {
     try {
       isCheckingConnection.value = true;
@@ -141,7 +144,6 @@ class GeneralController extends GetxController {
     }
   }
 
-  // تحديث البيانات
   Future<void> refreshData() async {
     try {
       isRefreshing.value = true;
@@ -157,11 +159,9 @@ class GeneralController extends GetxController {
     }
   }
 
-  // البحث في التخصصات
   Future<List<SpecializationModel>> searchSpecializations(String query) async {
     try {
       isSearching.value = true;
-
       final results = await GeneralService.searchSpecializations(query);
       return results;
     } catch (e) {
@@ -172,7 +172,6 @@ class GeneralController extends GetxController {
     }
   }
 
-  // الحصول على تخصص بالمعرف
   SpecializationModel? getSpecializationById(int id) {
     try {
       return specializations.firstWhere((spec) => spec.id == id);
@@ -181,7 +180,6 @@ class GeneralController extends GetxController {
     }
   }
 
-  // الحصول على يوم بالمعرف
   DayModel? getDayById(int id) {
     try {
       return days.firstWhere((day) => day.id == id);
@@ -190,7 +188,6 @@ class GeneralController extends GetxController {
     }
   }
 
-  // الحصول على اليوم الحالي
   Future<DayModel?> getCurrentDay() async {
     try {
       return await GeneralService.getCurrentDay();
@@ -199,7 +196,6 @@ class GeneralController extends GetxController {
     }
   }
 
-  // الحصول على أيام العمل
   Future<List<DayModel>> getWorkDays() async {
     try {
       return await GeneralService.getWorkDays();
@@ -208,64 +204,51 @@ class GeneralController extends GetxController {
     }
   }
 
-  // تعيين المرة الأولى كمكتملة
   void completeFirstTime() {
     isFirstTime.value = false;
     ApiConfig.setFirstTime(false);
   }
 
-  // تغيير صفحة الـ Onboarding
   void setOnboardingPage(int page) {
     currentOnboardingPage.value = page;
   }
 
-  // الانتقال للصفحة التالية في الـ Onboarding
   void nextOnboardingPage() {
     if (currentOnboardingPage.value < 2) {
       currentOnboardingPage.value++;
     } else {
       completeFirstTime();
-      Get.offAllNamed('/home');
+      Get.offAllNamed('/main-navigation');
     }
   }
 
-  // تخطي الـ Onboarding
   void skipOnboarding() {
     completeFirstTime();
-    Get.offAllNamed('/home');
+    Get.offAllNamed('/main-navigation');
   }
 
-  // تغيير تبويب الشريط السفلي
   void changeBottomNavIndex(int index) {
     currentBottomNavIndex.value = index;
   }
 
-  // تحديث المسار الحالي
   void updateCurrentRoute(String route) {
     currentRoute.value = route;
   }
 
-  // مسح البحث
   void clearSearch() {
     searchController.clear();
     searchQuery.value = '';
   }
 
-  // تبديل الوضع المظلم
   void toggleDarkMode() {
     isDarkMode.value = !isDarkMode.value;
-    // TODO: حفظ الإعداد محلياً
     Get.changeThemeMode(isDarkMode.value ? ThemeMode.dark : ThemeMode.light);
   }
 
-  // تغيير اللغة
   void changeLanguage(String languageCode) {
     selectedLanguage.value = languageCode;
-    // TODO: تطبيق تغيير اللغة
-    // Get.updateLocale(Locale(languageCode));
   }
 
-  // إظهار معلومات الخادم
   Future<void> showServerInfo() async {
     try {
       final serverInfo = await GeneralService.getServerInfo();
@@ -298,7 +281,6 @@ class GeneralController extends GetxController {
     }
   }
 
-  // إظهار الإحصائيات العامة
   void showGeneralStats() {
     Get.bottomSheet(
       Container(
@@ -357,7 +339,6 @@ class GeneralController extends GetxController {
     );
   }
 
-  // بناء صف الإحصائية
   Widget _buildStatRow(String label, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -374,13 +355,11 @@ class GeneralController extends GetxController {
     );
   }
 
-  // مسح الذاكرة المؤقتة
   void clearCache() {
     GeneralService.clearCache();
     AppUtils.showSuccessSnackbar('تم المسح', 'تم مسح الذاكرة المؤقتة');
   }
 
-  // إعادة تشغيل التطبيق
   void restartApp() {
     Get.dialog(
       AlertDialog(
@@ -394,7 +373,6 @@ class GeneralController extends GetxController {
           ElevatedButton(
             onPressed: () {
               Get.back();
-              // TODO: إعادة تشغيل التطبيق
               Get.offAllNamed('/splash');
             },
             child: const Text('إعادة تشغيل'),
@@ -404,7 +382,6 @@ class GeneralController extends GetxController {
     );
   }
 
-  // إظهار معلومات التطبيق
   void showAboutApp() {
     Get.dialog(
       AlertDialog(
@@ -430,11 +407,9 @@ class GeneralController extends GetxController {
     );
   }
 
-  // التحقق من التحديثات
   Future<void> checkForUpdates() async {
     AppUtils.showLoadingDialog();
 
-    // محاكاة فحص التحديثات
     await Future.delayed(const Duration(seconds: 2));
 
     AppUtils.hideLoadingDialog();
@@ -443,7 +418,6 @@ class GeneralController extends GetxController {
         'لا توجد تحديثات', 'أنت تستخدم أحدث إصدار من التطبيق');
   }
 
-  // تنظيف الموارد
   @override
   void dispose() {
     super.dispose();

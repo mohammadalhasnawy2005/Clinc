@@ -72,20 +72,6 @@ class AppRoutes {
       page: () => const DoctorProfileScreen(),
       binding: DoctorBinding(),
     ),
-    // GetPage(
-    //   name: createClinic,
-    //   page: () => const CreateClinicScreen(),
-    //   binding: DoctorBinding(),
-    // ),
-    // GetPage(
-    //   name: doctorDashboard,
-    //   page: () => const DoctorDashboardScreen(),
-    //   bindings: [
-    //     DoctorBinding(),
-    //     AppointmentBinding(),
-    //     SubscriptionBinding(),
-    //   ],
-    // ),
 
     // Appointment Screens
     GetPage(
@@ -93,23 +79,11 @@ class AppRoutes {
       page: () => const AppointmentBookingScreen(),
       binding: AppointmentBinding(),
     ),
-    // GetPage(
-    //   name: appointmentDetails,
-    //   page: () => const AppointmentDetailsScreen(),
-    //   binding: AppointmentBinding(),
-    // ),
     GetPage(
       name: myAppointments,
       page: () => const MyAppointmentsScreen(),
       binding: AppointmentBinding(),
     ),
-
-    // Subscription Screens
-    // GetPage(
-    //   name: subscriptionPackages,
-    //   page: () => const SubscriptionPackagesScreen(),
-    //   binding: SubscriptionBinding(),
-    // ),
 
     // Profile & Settings
     GetPage(
@@ -117,7 +91,7 @@ class AppRoutes {
       page: () => const ProfileScreen(),
     ),
 
-    // Chat (للمستقبل)
+    // Chat
     GetPage(
       name: chat,
       page: () => const ChatPage(),
@@ -125,24 +99,31 @@ class AppRoutes {
   ];
 }
 
-// Controller Bindings
+// Controller Bindings - تم إصلاحها
 class DoctorBinding extends Bindings {
   @override
   void dependencies() {
-    Get.lazyPut<DoctorController>(() => DoctorController());
+    // استخدم lazyPut مع condition للتجنب إعادة الإنشاء
+    if (!Get.isRegistered<DoctorController>()) {
+      Get.lazyPut<DoctorController>(() => DoctorController());
+    }
   }
 }
 
 class AppointmentBinding extends Bindings {
   @override
   void dependencies() {
-    Get.lazyPut<AppointmentController>(() => AppointmentController());
+    if (!Get.isRegistered<AppointmentController>()) {
+      Get.lazyPut<AppointmentController>(() => AppointmentController());
+    }
   }
 }
 
 class SubscriptionBinding extends Bindings {
   @override
   void dependencies() {
-    Get.lazyPut<SubscriptionController>(() => SubscriptionController());
+    if (!Get.isRegistered<SubscriptionController>()) {
+      Get.lazyPut<SubscriptionController>(() => SubscriptionController());
+    }
   }
 }

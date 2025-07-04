@@ -40,7 +40,7 @@ class MedicsApp extends StatelessWidget {
       initialRoute: AppRoutes.splash,
       getPages: AppRoutes.routes,
 
-      // Controllers Binding
+      // Controllers Binding - هذا مهم جداً
       initialBinding: InitialBinding(),
 
       // Global Directionality for RTL
@@ -54,11 +54,11 @@ class MedicsApp extends StatelessWidget {
   }
 }
 
-// ربط Controllers الأساسية
+// ربط Controllers الأساسية - تم إصلاحه
 class InitialBinding extends Bindings {
   @override
   void dependencies() {
-    // Controllers أساسية يجب تهيئتها في بداية التطبيق
+    // تهيئة Controllers الأساسية مع put permanent
     Get.put<AuthController>(AuthController(), permanent: true);
     Get.put<GeneralController>(GeneralController(), permanent: true);
   }
