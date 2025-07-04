@@ -9,56 +9,54 @@ import '../appointment/my_appointments_screen.dart';
 import '../profile/profile_screen.dart';
 import '../widgets/chat_floating_button.dart';
 
-class MainNavigation extends StatelessWidget {
+class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Obx(() {
+  State<MainNavigation> createState() => _MainNavigationState();
+}
+
+class _MainNavigationState extends State<MainNavigation> {
+  late GeneralController generalController;
+  late AuthController authController;
+
+  int currentIndex = 0;
+  List<NavigationItem> navigationItems = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeControllers();
+    _setupNavigationItems();
+  }
+
+  void _initializeControllers() {
+    try {
       // التأكد من وجود Controllers
       if (!Get.isRegistered<AuthController>()) {
         Get.put(AuthController(), permanent: true);
       }
+      authController = Get.find<AuthController>();
+
       if (!Get.isRegistered<GeneralController>()) {
         Get.put(GeneralController(), permanent: true);
       }
+      generalController = Get.find<GeneralController>();
 
-      final authController = AuthController.instance;
-      final generalController = GeneralController.instance;
-
-      final List<NavigationItem> items = _getNavigationItems(authController);
-
-      return Scaffold(
-        body: Stack(
-          children: [
-            IndexedStack(
-              index: generalController.currentBottomNavIndex.value,
-              children: items.map((item) => item.page).toList(),
-            ),
-            const ChatFloatingButton(),
-          ],
-        ),
-        bottomNavigationBar: BottomNavigationBar(
-          currentIndex: generalController.currentBottomNavIndex.value,
-          onTap: generalController.changeBottomNavIndex,
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: AppColors.backgroundLight,
-          selectedItemColor: AppColors.primary,
-          unselectedItemColor: AppColors.textLight,
-          elevation: 8,
-          items: items
-              .map((item) => BottomNavigationBarItem(
-                    icon: Icon(item.icon),
-                    activeIcon: Icon(item.activeIcon ?? item.icon),
-                    label: item.label,
-                  ))
-              .toList(),
-        ),
-      );
-    });
+      print('✅ MainNavigation controllers initialized');
+    } catch (e) {
+      print('❌ Error initializing controllers in MainNavigation: $e');
+      // إنشاء controllers افتراضية
+      authController = Get.put(AuthController(), permanent: true);
+      generalController = Get.put(GeneralController(), permanent: true);
+    }
   }
 
-  List<NavigationItem> _getNavigationItems(AuthController authController) {
+  void _setupNavigationItems() {
+    navigationItems = _getNavigationItems();
+  }
+
+  List<NavigationItem> _getNavigationItems() {
     final List<NavigationItem> baseItems = [
       NavigationItem(
         icon: Icons.home_outlined,
@@ -68,56 +66,200 @@ class MainNavigation extends StatelessWidget {
       ),
     ];
 
-    if (authController.isLoggedIn) {
-      if (authController.isPatient) {
+    try {
+      if (authController.isLoggedIn) {
+        if (authController.isPatient) {
+          baseItems.addAll([
+            NavigationItem(
+              icon: Icons.calendar_today_outlined,
+              activeIcon: Icons.calendar_today_rounded,
+              label: AppStrings.appointments,
+              page: const MyAppointmentsScreen(),
+            ),
+            NavigationItem(
+              icon: Icons.person_outline_rounded,
+              activeIcon: Icons.person_rounded,
+              label: AppStrings.profile,
+              page: const ProfileScreen(),
+            ),
+          ]);
+        } else if (authController.isDoctor) {
+          baseItems.addAll([
+            NavigationItem(
+              icon: Icons.calendar_today_outlined,
+              activeIcon: Icons.calendar_today_rounded,
+              label: AppStrings.appointments,
+              page: const MyAppointmentsScreen(),
+            ),
+            NavigationItem(
+              icon: Icons.person_outline_rounded,
+              activeIcon: Icons.person_rounded,
+              label: AppStrings.profile,
+              page: const ProfileScreen(),
+            ),
+          ]);
+        }
+      } else {
         baseItems.addAll([
           NavigationItem(
-            icon: Icons.calendar_today_outlined,
-            activeIcon: Icons.calendar_today_rounded,
-            label: AppStrings.appointments,
-            page: const MyAppointmentsScreen(),
+            icon: Icons.search_outlined,
+            activeIcon: Icons.search_rounded,
+            label: 'البحث',
+            page: const _SearchScreen(),
           ),
           NavigationItem(
-            icon: Icons.person_outline_rounded,
-            activeIcon: Icons.person_rounded,
-            label: AppStrings.profile,
-            page: const ProfileScreen(),
-          ),
-        ]);
-      } else if (authController.isDoctor) {
-        baseItems.addAll([
-          NavigationItem(
-            icon: Icons.calendar_today_outlined,
-            activeIcon: Icons.calendar_today_rounded,
-            label: AppStrings.appointments,
-            page: const MyAppointmentsScreen(),
-          ),
-          NavigationItem(
-            icon: Icons.person_outline_rounded,
-            activeIcon: Icons.person_rounded,
-            label: AppStrings.profile,
-            page: const ProfileScreen(),
+            icon: Icons.login_outlined,
+            activeIcon: Icons.login_rounded,
+            label: 'تسجيل الدخول',
+            page: const _LoginPromptScreen(),
           ),
         ]);
       }
-    } else {
-      baseItems.addAll([
-        NavigationItem(
-          icon: Icons.search_outlined,
-          activeIcon: Icons.search_rounded,
-          label: 'البحث',
-          page: const _SearchScreen(),
-        ),
-        NavigationItem(
-          icon: Icons.login_outlined,
-          activeIcon: Icons.login_rounded,
-          label: 'تسجيل الدخول',
-          page: const _LoginPromptScreen(),
-        ),
-      ]);
+    } catch (e) {
+      print('Error getting navigation items: $e');
+      // إرجاع العناصر الأساسية فقط في حالة الخطأ
     }
 
     return baseItems;
+  }
+
+  void _onItemTapped(int index) {
+    setState(() {
+      currentIndex = index;
+    });
+
+    // تحديث controller إذا كان موجود
+    try {
+      if (Get.isRegistered<GeneralController>()) {
+        generalController.changeBottomNavIndex(index);
+      }
+    } catch (e) {
+      print('Error updating controller index: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // التأكد من وجود العناصر
+    if (navigationItems.isEmpty) {
+      _setupNavigationItems();
+    }
+
+    // التأكد من أن currentIndex صالح
+    if (currentIndex >= navigationItems.length) {
+      currentIndex = 0;
+    }
+
+    return Scaffold(
+      body: Stack(
+        children: [
+          // عرض الصفحة الحالية
+          IndexedStack(
+            index: currentIndex,
+            children: navigationItems
+                .map((item) => _SafePageWrapper(
+                      child: item.page,
+                    ))
+                .toList(),
+          ),
+
+          // زر المحادثة العائم
+          const ChatFloatingButton(),
+        ],
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: currentIndex,
+        onTap: _onItemTapped,
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: AppColors.backgroundLight,
+        selectedItemColor: AppColors.primary,
+        unselectedItemColor: AppColors.textLight,
+        elevation: 8,
+        items: navigationItems
+            .map((item) => BottomNavigationBarItem(
+                  icon: Icon(item.icon),
+                  activeIcon: Icon(item.activeIcon ?? item.icon),
+                  label: item.label,
+                ))
+            .toList(),
+      ),
+    );
+  }
+}
+
+// Wrapper آمن للصفحات
+class _SafePageWrapper extends StatelessWidget {
+  final Widget child;
+
+  const _SafePageWrapper({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Builder(
+      builder: (context) {
+        try {
+          return child;
+        } catch (e) {
+          print('Error loading page: $e');
+          return _ErrorPageWidget(error: e.toString());
+        }
+      },
+    );
+  }
+}
+
+// صفحة الخطأ
+class _ErrorPageWidget extends StatelessWidget {
+  final String error;
+
+  const _ErrorPageWidget({required this.error});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.error_outline,
+                size: 64,
+                color: AppColors.error,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'حدث خطأ في تحميل الصفحة',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                error,
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 14,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () {
+                  // إعادة تشغيل التطبيق
+                  Get.offAllNamed('/splash');
+                },
+                child: const Text('إعادة المحاولة'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -135,6 +277,7 @@ class NavigationItem {
   });
 }
 
+// صفحة البحث
 class _SearchScreen extends StatelessWidget {
   const _SearchScreen();
 
@@ -144,6 +287,8 @@ class _SearchScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('البحث عن الأطباء'),
         automaticallyImplyLeading: false,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
       ),
       body: const Center(
         child: Column(
@@ -178,6 +323,7 @@ class _SearchScreen extends StatelessWidget {
   }
 }
 
+// صفحة دعوة تسجيل الدخول
 class _LoginPromptScreen extends StatelessWidget {
   const _LoginPromptScreen();
 
@@ -187,6 +333,8 @@ class _LoginPromptScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('حسابي'),
         automaticallyImplyLeading: false,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
       ),
       body: Center(
         child: Padding(

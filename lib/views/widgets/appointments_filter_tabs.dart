@@ -1,117 +1,142 @@
+import 'package:clinic/controllers/auth_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_constants.dart';
-import '../../../controllers/appointment_controller.dart';
+import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_constants.dart';
+import '../../controllers/appointment_controller.dart';
 
 class AppointmentsFilterTabs extends StatelessWidget {
   const AppointmentsFilterTabs({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // استخدم GetBuilder بدلاً من Obx لتجنب المشاكل
-    return GetBuilder<AppointmentController>(
-      builder: (controller) {
-        final List<FilterTab> tabs = [
-          FilterTab(status: -1, label: 'الكل'),
-          FilterTab(
-              status: AppConstants.appointmentStatusPending,
-              label: 'قيد الانتظار'),
-          FilterTab(
-              status: AppConstants.appointmentStatusApproved,
-              label: 'موافق عليها'),
-          FilterTab(
-              status: AppConstants.appointmentStatusCompleted, label: 'مكتملة'),
-          FilterTab(
-              status: AppConstants.appointmentStatusRejected, label: 'مرفوضة'),
-        ];
+    return Obx(() {
+      // التأكد من وجود AppointmentController
+      if (!Get.isRegistered<AppointmentController>()) {
+        Get.put(AppointmentController(), permanent: false);
+      }
 
-        return Container(
-          height: 50,
-          margin: const EdgeInsets.symmetric(vertical: 8),
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(
-                horizontal: AppConstants.defaultPadding),
-            itemCount: tabs.length,
-            itemBuilder: (context, index) {
-              final tab = tabs[index];
-              final isSelected = controller.statusFilter.value == tab.status;
-              final appointmentCount = tab.status == -1
-                  ? controller.myAppointments.length
-                  : controller.getAppointmentCountByStatus(tab.status);
+      final controller = AppointmentController.instance;
 
-              return GestureDetector(
-                onTap: () => controller.applyStatusFilter(tab.status),
-                child: Container(
-                  margin: const EdgeInsets.only(left: 12),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppColors.primary
-                        : AppColors.backgroundLight,
-                    borderRadius: BorderRadius.circular(25),
-                    border: Border.all(
-                      color: isSelected ? AppColors.primary : AppColors.border,
-                      width: 1,
-                    ),
-                    boxShadow: isSelected
-                        ? [
-                            BoxShadow(
-                              color: AppColors.primary.withOpacity(0.3),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ]
-                        : null,
+      final List<FilterTab> tabs = [
+        FilterTab(status: -1, label: 'الكل'),
+        FilterTab(
+            status: AppConstants.appointmentStatusPending,
+            label: 'قيد الانتظار'),
+        FilterTab(
+            status: AppConstants.appointmentStatusApproved,
+            label: 'موافق عليها'),
+        FilterTab(
+            status: AppConstants.appointmentStatusCompleted, label: 'مكتملة'),
+        FilterTab(
+            status: AppConstants.appointmentStatusRejected, label: 'مرفوضة'),
+      ];
+
+      return Container(
+        height: 50,
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(
+              horizontal: AppConstants.defaultPadding),
+          itemCount: tabs.length,
+          itemBuilder: (context, index) {
+            final tab = tabs[index];
+
+            final isSelected = controller.statusFilter.value == tab.status;
+            final appointmentCount = tab.status == -1
+                ? _getTotalAppointments(controller)
+                : controller.getAppointmentCountByStatus(tab.status);
+
+            return GestureDetector(
+              onTap: () => controller.applyStatusFilter(tab.status),
+              child: Container(
+                margin: const EdgeInsets.only(left: 12),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isSelected
+                      ? AppColors.primary
+                      : AppColors.backgroundLight,
+                  borderRadius: BorderRadius.circular(25),
+                  border: Border.all(
+                    color: isSelected ? AppColors.primary : AppColors.border,
+                    width: 1,
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        tab.label,
-                        style: TextStyle(
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: AppColors.primary.withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      tab.label,
+                      style: TextStyle(
+                        color: isSelected
+                            ? AppColors.textWhite
+                            : AppColors.textPrimary,
+                        fontWeight:
+                            isSelected ? FontWeight.w600 : FontWeight.normal,
+                        fontSize: 14,
+                      ),
+                    ),
+                    if (appointmentCount > 0) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
                           color: isSelected
-                              ? AppColors.textWhite
-                              : AppColors.textPrimary,
-                          fontWeight:
-                              isSelected ? FontWeight.w600 : FontWeight.normal,
-                          fontSize: 14,
+                              ? AppColors.textWhite.withOpacity(0.2)
+                              : _getStatusColor(tab.status).withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          appointmentCount.toString(),
+                          style: TextStyle(
+                            color: isSelected
+                                ? AppColors.textWhite
+                                : _getStatusColor(tab.status),
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                      if (appointmentCount > 0) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? AppColors.textWhite.withOpacity(0.2)
-                                : _getStatusColor(tab.status).withOpacity(0.2),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            appointmentCount.toString(),
-                            style: TextStyle(
-                              color: isSelected
-                                  ? AppColors.textWhite
-                                  : _getStatusColor(tab.status),
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
                     ],
-                  ),
+                  ],
                 ),
-              );
-            },
-          ),
-        );
-      },
-    );
+              ),
+            );
+          },
+        ),
+      );
+    });
+  }
+
+  int _getTotalAppointments(AppointmentController controller) {
+    try {
+      // التأكد من وجود AuthController
+      if (!Get.isRegistered<AuthController>()) {
+        return 0;
+      }
+
+      final authController = Get.find<AuthController>();
+      if (authController.isPatient) {
+        return controller.myAppointments.length;
+      } else if (authController.isDoctor) {
+        return controller.doctorAppointments.length;
+      }
+      return 0;
+    } catch (e) {
+      return 0;
+    }
   }
 
   Color _getStatusColor(int status) {

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../core/constants/app_colors.dart';
-import '../../../controllers/appointment_controller.dart';
-import '../../../controllers/auth_controller.dart';
+import '../../core/constants/app_colors.dart';
+import '../../controllers/appointment_controller.dart';
+import '../../controllers/auth_controller.dart';
 import 'appointment_item.dart';
 
 class AppointmentList extends StatelessWidget {
@@ -10,11 +10,18 @@ class AppointmentList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final AppointmentController appointmentController =
-        Get.find<AppointmentController>();
-    final AuthController authController = Get.find<AuthController>();
-
     return Obx(() {
+      // التأكد من وجود Controllers
+      if (!Get.isRegistered<AppointmentController>()) {
+        Get.put(AppointmentController(), permanent: false);
+      }
+      if (!Get.isRegistered<AuthController>()) {
+        Get.put(AuthController(), permanent: true);
+      }
+
+      final appointmentController = AppointmentController.instance;
+      final authController = AuthController.instance;
+
       if (appointmentController.isLoadingAppointments.value) {
         return const _LoadingAppointments();
       }
@@ -42,7 +49,8 @@ class AppointmentList extends StatelessWidget {
               isDoctor: authController.isDoctor,
               onTap: () {
                 appointmentController.selectAppointment(appointment);
-                Get.toNamed('/appointment-details');
+                // Get.toNamed('/appointment-details');
+                _showAppointmentDetails(context, appointment);
               },
             ),
           );
@@ -65,6 +73,32 @@ class AppointmentList extends StatelessWidget {
       return controller.doctorAppointments;
     }
     return controller.getAppointmentsByStatus(controller.statusFilter.value);
+  }
+
+  void _showAppointmentDetails(BuildContext context, appointment) {
+    Get.dialog(
+      AlertDialog(
+        title: const Text('تفاصيل الموعد'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('المريض: ${appointment.user.name}'),
+            Text('الطبيب: ${appointment.doctor.name}'),
+            Text('التاريخ: ${appointment.appointmentDate}'),
+            Text('الحالة: ${appointment.status}'),
+            if (appointment.notes != null && appointment.notes!.isNotEmpty)
+              Text('الملاحظات: ${appointment.notes}'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: const Text('إغلاق'),
+          ),
+        ],
+      ),
+    );
   }
 }
 
