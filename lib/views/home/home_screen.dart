@@ -19,10 +19,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  late DoctorController doctorController;
-  late AuthController authController;
-  late GeneralController generalController;
-
   @override
   void initState() {
     super.initState();
@@ -30,32 +26,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _initializeControllers() {
-    try {
-      // التأكد من وجود Controllers الأساسية
-      if (!Get.isRegistered<AuthController>()) {
-        Get.put(AuthController(), permanent: true);
-      }
-      authController = Get.find<AuthController>();
-
-      if (!Get.isRegistered<GeneralController>()) {
-        Get.put(GeneralController(), permanent: true);
-      }
-      generalController = Get.find<GeneralController>();
-
-      // إنشاء DoctorController للصفحة الرئيسية فقط
-      if (!Get.isRegistered<DoctorController>()) {
-        doctorController = Get.put(DoctorController(), tag: 'home');
-      } else {
-        doctorController = Get.find<DoctorController>();
-      }
-
-      print('✅ All controllers initialized successfully');
-    } catch (e) {
-      print('❌ Error initializing controllers: $e');
-      // إنشاء controllers افتراضية في حالة الخطأ
-      authController = Get.put(AuthController(), permanent: true);
-      generalController = Get.put(GeneralController(), permanent: true);
-      doctorController = Get.put(DoctorController(), tag: 'home');
+    // Initialize DoctorController if not already registered
+    if (!Get.isRegistered<DoctorController>()) {
+      Get.lazyPut<DoctorController>(() => DoctorController());
     }
   }
 
@@ -68,30 +41,30 @@ class _HomeScreenState extends State<HomeScreen> {
           onRefresh: _refreshData,
           child: CustomScrollView(
             slivers: [
-              // Header - بدون Obx
+              // Header
               const SliverToBoxAdapter(
-                child: _SafeHomeHeader(),
+                child: HomeHeader(),
               ),
 
               // Search Bar
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.all(AppConstants.defaultPadding),
-                  child: _SafeSearchBar(),
+                  child: SearchBarWidget(),
                 ),
               ),
 
-              // Specializations Section
+              // Specializations Section - Safe Widget
               const SliverToBoxAdapter(
                 child: _SafeSpecializationsSection(),
               ),
 
-              // Top Doctors Section
+              // Top Doctors Section - Safe Widget
               const SliverToBoxAdapter(
                 child: _SafeTopDoctorsSection(),
               ),
 
-              // Nearby Doctors Section
+              // Nearby Doctors Section - Safe Widget
               const SliverToBoxAdapter(
                 child: _SafeNearbyDoctorsSection(),
               ),
@@ -109,197 +82,73 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _refreshData() async {
     try {
-      await Future.wait([
-        if (Get.isRegistered<DoctorController>())
-          doctorController.refreshData(),
-        if (Get.isRegistered<GeneralController>())
-          generalController.refreshData(),
-      ]);
+      if (Get.isRegistered<DoctorController>()) {
+        final doctorController = Get.find<DoctorController>();
+        await doctorController.refreshData();
+      }
+      if (Get.isRegistered<GeneralController>()) {
+        final generalController = Get.find<GeneralController>();
+        await generalController.refreshData();
+      }
     } catch (e) {
       print('Error refreshing data: $e');
     }
   }
-
-  @override
-  void dispose() {
-    // تنظيف DoctorController الخاص بالصفحة الرئيسية
-    if (Get.isRegistered<DoctorController>(tag: 'home')) {
-      Get.delete<DoctorController>(tag: 'home');
-    }
-    super.dispose();
-  }
 }
 
-// Widget آمن للـ Header
-class _SafeHomeHeader extends StatelessWidget {
-  const _SafeHomeHeader();
-
-  @override
-  Widget build(BuildContext context) {
-    try {
-      if (Get.isRegistered<AuthController>()) {
-        return GetBuilder<AuthController>(
-          builder: (controller) => HomeHeader(),
-        );
-      }
-    } catch (e) {
-      print('Error in HomeHeader: $e');
-    }
-
-    // Fallback header بدون GetX
-    return Container(
-      padding: const EdgeInsets.all(AppConstants.defaultPadding),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            AppColors.primary,
-            AppColors.primaryLight,
-          ],
-        ),
-      ),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'مرحباً بك في Medics',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          SizedBox(height: 8),
-          Text(
-            'ابحث عن أفضل الأطباء',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 16,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// Widget آمن للـ Search Bar
-class _SafeSearchBar extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    try {
-      if (Get.isRegistered<DoctorController>()) {
-        return SearchBarWidget();
-      }
-    } catch (e) {
-      print('Error in SearchBar: $e');
-    }
-
-    // Fallback search bar
-    return Container(
-      height: 50,
-      decoration: BoxDecoration(
-        color: AppColors.backgroundLight,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: const Row(
-        children: [
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                'ابحث عن الأطباء...',
-                style: TextStyle(
-                  color: AppColors.textLight,
-                ),
-              ),
-            ),
-          ),
-          Icon(
-            Icons.search,
-            color: AppColors.textLight,
-          ),
-          SizedBox(width: 16),
-        ],
-      ),
-    );
-  }
-}
-
-// Widget آمن للتخصصات
+// Safe wrapper for SpecializationsSection
 class _SafeSpecializationsSection extends StatelessWidget {
   const _SafeSpecializationsSection();
 
   @override
   Widget build(BuildContext context) {
-    try {
-      if (Get.isRegistered<GeneralController>()) {
+    return GetBuilder<GeneralController>(
+      init: Get.isRegistered<GeneralController>() ? null : GeneralController(),
+      builder: (controller) {
+        if (controller.specializations.isEmpty) {
+          return const _LoadingSection(title: 'التخصصات');
+        }
         return SpecializationsSection();
-      }
-    } catch (e) {
-      print('Error in SpecializationsSection: $e');
-    }
-
-    return const _FallbackSection(
-      title: 'التخصصات',
-      message: 'جاري تحميل التخصصات...',
+      },
     );
   }
 }
 
-// Widget آمن لأفضل الأطباء
+// Safe wrapper for TopDoctorsSection
 class _SafeTopDoctorsSection extends StatelessWidget {
   const _SafeTopDoctorsSection();
 
   @override
   Widget build(BuildContext context) {
-    try {
-      if (Get.isRegistered<DoctorController>()) {
+    return GetBuilder<DoctorController>(
+      init: Get.isRegistered<DoctorController>() ? null : DoctorController(),
+      builder: (controller) {
         return TopDoctorsSection();
-      }
-    } catch (e) {
-      print('Error in TopDoctorsSection: $e');
-    }
-
-    return const _FallbackSection(
-      title: 'أفضل الأطباء',
-      message: 'جاري تحميل الأطباء...',
+      },
     );
   }
 }
 
-// Widget آمن للأطباء القريبين
+// Safe wrapper for NearbyDoctorsSection
 class _SafeNearbyDoctorsSection extends StatelessWidget {
   const _SafeNearbyDoctorsSection();
 
   @override
   Widget build(BuildContext context) {
-    try {
-      if (Get.isRegistered<DoctorController>()) {
+    return GetBuilder<DoctorController>(
+      init: Get.isRegistered<DoctorController>() ? null : DoctorController(),
+      builder: (controller) {
         return NearbyDoctorsSection();
-      }
-    } catch (e) {
-      print('Error in NearbyDoctorsSection: $e');
-    }
-
-    return const _FallbackSection(
-      title: 'الأطباء القريبون',
-      message: 'جاري تحميل الأطباء القريبين...',
+      },
     );
   }
 }
 
-// Widget احتياطي
-class _FallbackSection extends StatelessWidget {
+// Loading widget for sections
+class _LoadingSection extends StatelessWidget {
   final String title;
-  final String message;
 
-  const _FallbackSection({
-    required this.title,
-    required this.message,
-  });
+  const _LoadingSection({required this.title});
 
   @override
   Widget build(BuildContext context) {
@@ -322,21 +171,9 @@ class _FallbackSection extends StatelessWidget {
               color: AppColors.gray100,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const CircularProgressIndicator(
-                    color: AppColors.primary,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    message,
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
-                ],
+            child: const Center(
+              child: CircularProgressIndicator(
+                color: AppColors.primary,
               ),
             ),
           ),
